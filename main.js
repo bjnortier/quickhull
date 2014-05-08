@@ -1,156 +1,107 @@
 window.onload = function(){
 
 
-	var isStatic = getParameterByName( 'static' ) === 'true';
+    var isStatic = getParameterByName( 'static' ) === 'true';
 
-	console.log( "isStatic", isStatic );
-
-
-	// THE USUAL SUSPECTS
-	var scene = new THREE.Scene(),
-		camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 ),
-		renderer = new THREE.WebGLRenderer(),
-		controls = new THREE.OrbitControls( camera );
-
-	camera.position.z = 600;
-	renderer.autoClear = false;
-	controls.noZoom = true;
-	controls.noPan = true;
-
-	document.querySelector( '#container' ).appendChild( renderer.domElement );
+    console.log( "isStatic", isStatic );
 
 
-	function resize() {
+    // THE USUAL SUSPECTS
+    var scene = new THREE.Scene(),
+        camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 ),
+        renderer = new THREE.WebGLRenderer(),
+        controls = new THREE.OrbitControls( camera );
 
-		windowHalfX = window.innerWidth / 2;
-		windowHalfY = window.innerHeight / 2;
+    camera.position.z = 600;
+    renderer.autoClear = false;
+    controls.noZoom = true;
+    controls.noPan = true;
 
-		camera.aspect = window.innerWidth / window.innerHeight;
-		camera.updateProjectionMatrix();
-
-		cubeCamera.aspect = window.innerWidth / window.innerHeight;
-		cubeCamera.updateProjectionMatrix();
-
-		renderer.setSize( window.innerWidth, window.innerHeight );
-
-	}
+    document.querySelector( '#container' ).appendChild( renderer.domElement );
 
 
+    function resize() {
 
+        windowHalfX = window.innerWidth / 2;
+        windowHalfY = window.innerHeight / 2;
 
-	// SKYBOX
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
 
+        cubeCamera.aspect = window.innerWidth / window.innerHeight;
+        cubeCamera.updateProjectionMatrix();
 
-	var cubeCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-		cubeScene = new THREE.Scene();
+        renderer.setSize( window.innerWidth, window.innerHeight );
 
-
-	var path = "textures/cube/Park3Med/",
-		format = '.jpg',
-		urls = [
-			path + 'px' + format, path + 'nx' + format,
-			path + 'py' + format, path + 'ny' + format,
-			path + 'pz' + format, path + 'nz' + format
-		];
-
-	var textureCube = THREE.ImageUtils.loadTextureCube( urls );
-	var shader = THREE.ShaderLib[ "cube" ];
-		shader.uniforms[ "tCube" ].value = textureCube;
-
-	var material = new THREE.ShaderMaterial( {
-
-		fragmentShader: shader.fragmentShader,
-		vertexShader: shader.vertexShader,
-		uniforms: shader.uniforms,
-		side: THREE.BackSide,
-		depthWrite: false
-
-	} ),
-
-	mesh = new THREE.Mesh( new THREE.BoxGeometry( 100, 100, 100 ), material );
-	cubeScene.add( mesh );
+    }
 
 
 
-	///
+
+    // SKYBOX
 
 
-	var NUM_VERTS 	= isStatic ? 3000 : 100,
-		RADIUS 		= 200,
-		SPEED 		= 0.01,
-		vertices 	= [],
-		quaternion 	= new THREE.Quaternion,
-		geometry 	= new THREE.Geometry();
+    var cubeCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+        cubeScene = new THREE.Scene();
 
 
-	// Since we're moving the vertices every frame, make it dynamic
-	geometry.dynamic = true;
+    var path = "textures/cube/Park3Med/",
+        format = '.jpg',
+        urls = [
+            path + 'px' + format, path + 'nx' + format,
+            path + 'py' + format, path + 'ny' + format,
+            path + 'pz' + format, path + 'nz' + format
+        ];
+
+    var textureCube = THREE.ImageUtils.loadTextureCube( urls );
+    var shader = THREE.ShaderLib[ "cube" ];
+        shader.uniforms[ "tCube" ].value = textureCube;
+
+    var material = new THREE.ShaderMaterial( {
+
+        fragmentShader: shader.fragmentShader,
+        vertexShader: shader.vertexShader,
+        uniforms: shader.uniforms,
+        side: THREE.BackSide,
+        depthWrite: false
+
+    } ),
+
+    mesh = new THREE.Mesh( new THREE.BoxGeometry( 100, 100, 100 ), material );
+    cubeScene.add( mesh );
 
 
-	// Create some vertices
-	i = NUM_VERTS;
-	while( i-- > 0 ){ 
+    var loader = new THREE.STLLoader();
+    loader.addEventListener( 'load', function ( event ) {
 
-		// Set up some initial positions
-		geometry.vertices[i] = new THREE.Vector3(
-			( Math.random() + 0.01 ) * 2.0 - 1.0, 
-			( Math.random() + 0.01 ) * 2.0 - 1.0, 
-			( Math.random() + 0.01 ) * 2.0 - 1.0
-		).normalize().multiplyScalar( RADIUS );
+        var geometry = event.content;
+        geometry = QuickHull(geometry);
+        var mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({ envMap: textureCube, reflectivity: 0.9}));
+        mesh.scale.set(10,10,10);
+        scene.add(mesh);
 
-		vertices[i] = {
-			vertex: geometry.vertices[i],
-			axis: new THREE.Vector3(
-				( Math.random() + 0.01 ) * 2.0 - 1.0, 
-				( Math.random() + 0.01 ) * 2.0 - 1.0, 
-				( Math.random() + 0.01 ) * 2.0 - 1.0
-			).normalize(),
-			velocity: (( Math.random() * 2.0 ) + 0.3 ) * SPEED
-		}
-
-	}
-
-	function update(){
-
-		// Reposition all the vertices
-		i = vertices.length;
-		while( i-- > 0 ){ 
-
-			quaternion.setFromAxisAngle( vertices[i].axis, vertices[i].velocity )
-			vertices[i].vertex.applyQuaternion( quaternion );			
-
-		}
-
-		if( isStatic ) console.time('hull')
-		QuickHull( geometry );
-		if( isStatic ) console.timeEnd('hull')
-		geometry.verticesNeedUpdate = true;			
-		
-	}
-	
-	update();
-	scene.add( new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({ envMap: textureCube, reflectivity: 0.9})));
+    });
+    loader.load('bool.stl');
 
 
     function animate(){
 
-    	controls.update();
-    	if( !isStatic ) update();
-    	cubeCamera.rotation.copy( camera.rotation );
+        controls.update();
+        cubeCamera.rotation.copy( camera.rotation );
 
-    	renderer.clear();
+        renderer.clear();
 
-    	// Oooh, double render...
-    	renderer.render( cubeScene, cubeCamera );
-    	renderer.render( scene, camera );
-    	
+        // Oooh, double render...
+        renderer.render( cubeScene, cubeCamera );
+        renderer.render( scene, camera );
 
-    	requestAnimationFrame( animate );
+
+        requestAnimationFrame( animate );
 
     }
 
     window.addEventListener( 'resize', resize )
-	resize();
+    resize();
     animate();
 
 }
